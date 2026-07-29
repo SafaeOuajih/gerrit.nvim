@@ -1,0 +1,235 @@
+*gerrit.txt*   Review Gerrit changes without leaving Neovim
+
+==============================================================================
+CONTENTS                                                       *gerrit-contents*
+
+  1. Introduction ......................... |gerrit-introduction|
+  2. Requirements ......................... |gerrit-requirements|
+  3. Commands ............................. |gerrit-commands|
+  4. The overview buffer .................. |gerrit-overview|
+  5. The diff buffer ...................... |gerrit-diff|
+  6. The review buffer .................... |gerrit-review|
+  7. Draft comments ....................... |gerrit-drafts|
+  8. Configuration ........................ |gerrit-configuration|
+  9. Health ............................... |gerrit-health|
+ 10. How it works ......................... |gerrit-internals|
+
+==============================================================================
+1. INTRODUCTION                                            *gerrit-introduction*
+
+gerrit.nvim browses Gerrit changes, shows their diffs, collects inline comments
+and publishes reviews, all over Gerrit's ssh API on port 29418.
+
+There is no token to generate. The ssh destination and the project name are
+read from the git remote of the repository the current buffer belongs to, so
+one install covers every Gerrit server you work with.
+
+==============================================================================
+2. REQUIREMENTS                                            *gerrit-requirements*
+
+  - Neovim 0.10 or newer
+  - `ssh` and `git` on $PATH
+  - A Gerrit server reachable over ssh, version 2.12 or newer
+  - Optional: telescope.nvim for the change picker; `vim.ui.select` otherwise
+
+==============================================================================
+3. COMMANDS                                                    *gerrit-commands*
+
+                                                                      *:Gerrit*
+:Gerrit                 Pick from the open changes of the current project.
+
+:Gerrit {query}         Pick from an arbitrary Gerrit query, for example
+                        `:Gerrit status:merged owner:self`.
+
+:Gerrit list {query}    The same, when a query would be mistaken for a
+                        subcommand name.
+
+:Gerrit mine            Your own open changes.
+
+:Gerrit open [{n}]      Open the overview of change {n}.
+
+:Gerrit diff [{n}]      Open the diff of change {n}.
+
+:Gerrit review [{n}]    Compose and publish a review of change {n}.
+
+:Gerrit message [{n}] {text}
+                        Post {text} as a one-line message on change {n}.
+
+:Gerrit drafts          List the comments you have not published yet.
+
+Where {n} is optional it defaults to the change the current buffer is showing.
+
+==============================================================================
+4. THE OVERVIEW BUFFER                                         *gerrit-overview*
+
+Shows the subject, owner, branch, topic, status, current votes, reviewers, file
+list, commit message and the discussion so far.
+
+  <CR>    open the diff
+  R       review this change
+  gx      open the change in a browser
+  r       re-query and repaint
+  q       close
+
+==============================================================================
+5. THE DIFF BUFFER                                                 *gerrit-diff*
+
+The current patch set is fetched with `git fetch` and shown as a unified diff.
+Each line is mapped back to the file and line number Gerrit knows it by, so a
+comment lands exactly where the cursor is.
+
+  c           comment on the cursor line, or on the visual selection
+  X           drop the draft comment under the cursor
+  ]c  [c      jump to the next or previous comment
+  R           review this change
+  gf          open the working-tree copy of the file at this line
+  q           close
+
+Commenting on a "diff --git" header attaches the comment to the whole file.
+Commenting on a removed line attaches it to the PARENT side, matching what
+Gerrit does for the left-hand pane of its own diff view.
+
+Comments already published are drawn inline in |hl-Comment| colours. Your own
+unpublished drafts are drawn in the warning colour, with a marker in the sign
+column.
+
+==============================================================================
+6. THE REVIEW BUFFER                                             *gerrit-review*
+
+`R` opens a floating buffer listing the labels the change uses, a summary of
+the drafts that will go with the review, and room for a message: >
+
+    # Change 4242  foo: stop leaking the parser context
+    # tools/thing  main  patch set 2
+    #
+    # 2 draft comments will be published with this review:
+    #   src/foo.c:12  off by one here
+    #   src/foo.c:40  why was this dropped?
+    #
+    # Vote by writing a value after a label; an empty value leaves it alone.
+    # Everything under the labels is the message. Lines starting with # are
+    # dropped.
+    # <C-s> publishes, q aborts.
+
+    Code-Review: +1
+    Verified:
+
+    Two nits inline, otherwise this looks right to me.
+<
+  <C-s>   publish; `:w` does the same
+  q       abort, keeping the drafts
+
+A label only counts while it sits above the message, so a line such as
+"Note: untested" in the body stays prose rather than becoming a vote.
+
+The message, the votes and every draft comment go out as one Gerrit review.
+
+==============================================================================
+7. DRAFT COMMENTS                                                *gerrit-drafts*
+
+Comments are collected locally and published in one batch, the way the web UI
+batches drafts behind its reply button.
+
+They survive quitting Neovim: the store is mirrored to a JSON file under
+`stdpath('state')` and cleared only once the review has been published. Use
+`:Gerrit drafts` to see what is still pending, and `X` on a diff line to drop
+one.
+
+==============================================================================
+8. CONFIGURATION                                          *gerrit-configuration*
+
+                                                              *gerrit.setup()*
+>lua
+    require('gerrit').setup {
+      host = nil,
+      port = nil,
+      ssh_args = { '-o', 'BatchMode=yes' },
+
+      remote = nil,
+      project = nil,
+
+      query = 'status:open',
+      scope_to_project = true,
+      limit = 100,
+
+      labels = { 'Code-Review', 'Verified' },
+      unresolved = true,
+
+      timeout = 30000,
+      browser = nil,
+      draft_file = vim.fs.joinpath(vim.fn.stdpath 'state', 'gerrit-drafts.json'),
+
+      keys = {
+        change = { diff = '<CR>', review = 'R', browse = 'gx',
+                   refresh = 'r', quit = 'q' },
+        diff   = { comment = 'c', delete = 'X', next = ']c', prev = '[c',
+                   review = 'R', edit = 'gf', quit = 'q' },
+        review = { publish = '<C-s>', quit = 'q' },
+      },
+    }
+<
+host ~
+  ssh destination, either an ~/.ssh/config alias or `user@host`. Left nil it is
+  read from the git remote. Set it when your remote is an HTTPS URL, since an
+  HTTPS URL says nothing about where ssh should connect.
+
+port ~
+  ssh port. Leave nil when `host` is an alias whose Port is already set in
+  ~/.ssh/config.
+
+remote ~
+  The git remote patch sets are fetched from. Left nil, `gerrit`, `review` and
+  `origin` are tried in that order, then any remote with an ssh URL.
+
+query, scope_to_project, limit ~
+  The default query for a bare `:Gerrit`, whether to narrow it to the current
+  project, and how many changes a query may return.
+
+labels ~
+  Offered in the review buffer when the change itself lists none, which happens
+  on servers that do not report submit records.
+
+unresolved ~
+  Publish inline comments as needing a reply. Set false to publish them
+  resolved.
+
+draft_file ~
+  Where unpublished comments are mirrored. Set nil to keep them in memory only.
+
+keys ~
+  Per-buffer mappings. Set any of them to false to leave the key alone.
+
+Highlight groups, all linked to standard groups by default:
+                                                          *gerrit-highlights*
+  GerritHeader        titles
+  GerritField         field and label names
+  GerritSubject       the change subject
+  GerritApproved      a positive vote
+  GerritRejected      a negative vote
+  GerritDraft         an unpublished comment
+  GerritComment       a published comment
+  GerritHint          the key reminder lines
+
+==============================================================================
+9. HEALTH                                                        *gerrit-health*
+
+`:checkhealth gerrit` reports which server was worked out, from which remote,
+and whether it answers. It usually catches one of:
+
+  - the host does not resolve, meaning you are off the VPN
+  - ssh wants a passphrase, meaning your key is not in the agent
+  - no remote looks like Gerrit, meaning `host` has to be set
+
+==============================================================================
+10. HOW IT WORKS                                              *gerrit-internals*
+
+  - `gerrit query --format=JSON` lists and describes changes
+  - `git fetch <remote> refs/changes/NN/CHANGE/PATCHSET` brings a patch set local
+  - `git diff-tree --root -p` renders it
+  - `gerrit review --json <change>,<patchset>` publishes the message, the votes
+    and the inline comments as one ReviewInput on stdin
+
+Passing the review as JSON on stdin is what makes inline comments possible over
+ssh, and avoids having to quote a multi-line message onto a command line.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

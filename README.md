@@ -1,7 +1,7 @@
 # gerrit.nvim
 
-Review Gerrit changes from Neovim: browse them, read the diff, leave inline
-comments, vote, and post the review without opening the web UI.
+A Neovim plugin for Gerrit Code Review. Browse changes, read the diff, leave
+inline comments, vote, and post the review without opening the web UI.
 
 It talks to Gerrit over ssh on port 29418. There is no token to generate and
 nothing to configure: if `git push` to your Gerrit works, so does this.

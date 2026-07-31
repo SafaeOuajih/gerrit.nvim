@@ -50,9 +50,9 @@ local function parse(lines, offset)
       -- A comment on the header is a comment on the file as a whole, which
       -- Gerrit expresses as a comment with no line number.
       map[bufline] = { file = b, side = 'REVISION', text = b }
-    elseif line:match '^%-%-%- ' then
+    elseif not old_ln and line:match '^%-%-%- ' then
       old_path = line:match '^%-%-%- a/(.+)$' or old_path
-    elseif line:match '^%+%+%+ ' then
+    elseif not old_ln and line:match '^%+%+%+ ' then
       new_path = line:match '^%+%+%+ b/(.+)$' or new_path
     else
       local o, n = line:match '^@@ %-(%d+),?%d* %+(%d+),?%d* @@'

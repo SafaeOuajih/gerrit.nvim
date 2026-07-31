@@ -133,13 +133,14 @@ local function parse(lines, labels)
 
   local votes = {}
   local body = {}
+  local in_message = false
 
   for _, line in ipairs(lines) do
     if not line:match '^%s*#' then
       local name, value = line:match '^([%w][%w%-_]*):%s*(.*)%s*$'
       -- A label only counts while we are still above the message; once real
       -- text has started, "Note: ..." is prose, not a vote.
-      if name and known[name] and #body == 0 then
+      if name and known[name] and not in_message then
         value = util.trim(value)
         if value ~= '' then
           local number = tonumber(value)
@@ -149,6 +150,9 @@ local function parse(lines, labels)
           votes[name] = number
         end
       else
+        if util.trim(line) ~= '' then
+          in_message = true
+        end
         table.insert(body, line)
       end
     end

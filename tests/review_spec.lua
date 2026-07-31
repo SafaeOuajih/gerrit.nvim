@@ -104,6 +104,42 @@ io.write '\n== comments only, no message ==\n'
 comments.add(key, { file = 'src/foo.c', side = 'REVISION', message = 'file level note' })
 compose { 'Code-Review:', '' }
 check('published on the strength of the drafts', sent ~= nil and sent.message == nil and sent.comments ~= nil, vim.inspect(sent))
+comments.clear(key)
+
+-- Every case above hands the buffer its own lines, which is not what a user
+-- does: they fill in the template, and the template puts a blank line between
+-- the instructions and the labels. Voting on the buffer as it is actually
+-- presented is the case that matters.
+io.write '\n== voting on the template, the way a user does ==\n'
+sent = nil
+review.open(change)
+vim.wait(100)
+local buf = vim.api.nvim_get_current_buf()
+local template = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+
+local blank_before_labels, label_row
+for i, line in ipairs(template) do
+  if line == 'Code-Review:' then
+    label_row = i
+    blank_before_labels = (template[i - 1] or ''):match '^%s*$' ~= nil
+    break
+  end
+end
+check('the template offers the label', label_row ~= nil, vim.inspect(template))
+check('with a blank line above it', blank_before_labels, vim.inspect(template))
+
+vim.api.nvim_buf_set_lines(buf, label_row - 1, label_row, false, { 'Code-Review: +1' })
+vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'Looks right to me.' })
+vim.cmd 'stopinsert'
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-s>', true, false, true), 'mx', false)
+vim.wait(200, function()
+  return sent ~= nil
+end)
+
+check('published', sent ~= nil)
+check('the vote survived the blank line', sent and sent.labels and sent.labels['Code-Review'] == 1, vim.inspect(sent))
+check('the label did not leak into the message', sent and sent.message and not sent.message:find 'Code%-Review', vim.inspect(sent and sent.message))
+check('the message is only what was typed', sent and sent.message == 'Looks right to me.', vim.inspect(sent and sent.message))
 
 io.write '\n== :Gerrit dispatch ==\n'
 local opened

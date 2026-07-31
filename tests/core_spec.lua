@@ -104,6 +104,38 @@ check('new file first line', map[19] and map[19].file == 'new.txt' and map[19].l
 check('new file second line', map[20] and map[20].line == 2, vim.inspect(map[20]))
 check('offset shifts everything', diff.parse(sample, 4)[5] ~= nil and diff.parse(sample, 4)[1] == nil)
 
+-- Inside a hunk, "---" and "+++" are a marker plus two characters of content.
+-- Removing a line that reads "-- note" produces "--- note", which is shaped
+-- exactly like a file header; reading it as one drops the line and leaves the
+-- old-side counter behind, so every comment after it lands a line out.
+local lookalike = vim.split(
+  table.concat({
+    'diff --git a/conf.lua b/conf.lua',
+    '--- a/conf.lua',
+    '+++ b/conf.lua',
+    '@@ -1,4 +1,4 @@',
+    ' local M = {}',
+    '--- an old comment',
+    '+++ a new comment',
+    ' return M',
+  }, '\n'),
+  '\n'
+)
+local look = diff.parse(lookalike, 0)
+check('context above the pair is new line 1', look[5] and look[5].line == 1, vim.inspect(look[5]))
+check(
+  '"--- text" in a hunk is a removed line',
+  look[6] and look[6].side == 'PARENT' and look[6].line == 2,
+  vim.inspect(look[6])
+)
+check(
+  '"+++ text" in a hunk is an added line',
+  look[7] and look[7].side == 'REVISION' and look[7].line == 2,
+  vim.inspect(look[7])
+)
+check('the line after the pair is still new line 3', look[8] and look[8].line == 3, vim.inspect(look[8]))
+check('the real header pair is still read as one', look[5] and look[5].file == 'conf.lua', vim.inspect(look[5]))
+
 io.write '\n== draft comments ==\n'
 comments.clear 'p~1'
 comments.add('p~1', { file = 'src/foo.c', side = 'REVISION', line = 12, message = 'this leaks' })

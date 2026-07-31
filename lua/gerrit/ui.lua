@@ -38,13 +38,13 @@ M.scratch = function(opts)
     vim.bo[buf].filetype = opts.filetype
   end
   if opts.name then
-    -- Reuse the name if a stale buffer is still holding it, so reopening the
-    -- same change twice does not fail with E95.
-    local existing = vim.fn.bufnr(opts.name)
-    if existing ~= -1 and existing ~= buf then
-      pcall(vim.api.nvim_buf_delete, existing, { force = true })
+    for _, other in ipairs(vim.api.nvim_list_bufs()) do
+      if other ~= buf and vim.api.nvim_buf_get_name(other) == opts.name then
+        pcall(vim.api.nvim_buf_delete, other, { force = true })
+      end
     end
-    vim.api.nvim_buf_set_name(buf, opts.name)
+    -- Naming is a convenience, not the point of the buffer.
+    pcall(vim.api.nvim_buf_set_name, buf, opts.name)
   end
 
   return buf

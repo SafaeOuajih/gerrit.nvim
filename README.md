@@ -6,6 +6,10 @@ inline comments, vote, and post the review without opening the web UI.
 It talks to Gerrit over ssh on port 29418. There is no token to generate and
 nothing to configure: if `git push` to your Gerrit works, so does this.
 
+<p align="center">
+  <img src="assets/demo.gif" alt="Picking a change, commenting on a line, voting and publishing the review" width="1000">
+</p>
+
 ## Requirements
 
 - Neovim 0.10 or newer

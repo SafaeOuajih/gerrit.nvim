@@ -120,8 +120,36 @@ M.run = function(query, flags, cb)
   end)
 end
 
+--- Restrict a query to the changes somebody has touched recently.
+---
+--- `status:open` on a long lived project matches everything anyone ever left
+--- hanging, and the server has to walk all of it before we see a single row.
+--- Asking only for the last couple of weeks is what makes `:Gerrit` come back
+--- straight away; `max_age = nil` gives the old, exhaustive behaviour back.
+---
+--- Written as `NOT age:2w` rather than the `-age:2w` you would type in the web
+--- UI: ssh passes the query over as plain arguments, so a word starting with a
+--- dash is taken for a command line option long before the query parser gets a
+--- look at it.
+---@param query string
+---@return string
+M.recent = function(query)
+  local window = config.options.max_age
+  if not window or window == '' then
+    return query
+  end
+
+  -- The frontier stops `message:` from looking like an age contraint, since it
+  -- happens to end in "age:" as well.
+  if query:match '%f[%a]age:' then
+    return query
+  end
+
+  return ('%s NOT age:%s'):format(util.trim(query), window)
+end
+
 --- The default query for `:Gerrit`, narrowed to the current project when the
---- remote tells us what it is.
+--- remote tells us what it is, and to the recent past.
 ---@return string
 M.default_query = function()
   local opts = config.options
@@ -135,7 +163,7 @@ M.default_query = function()
     end
   end
 
-  return query
+  return M.recent(query)
 end
 
 --- Fetch one change, with everything needed to review it.

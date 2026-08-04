@@ -41,6 +41,7 @@ local M = {}
 ---@field project string|nil project name; nil reads it from the remote URL
 ---@field query string default query used by `:Gerrit`
 ---@field scope_to_project boolean restrict the default query to the current project
+---@field max_age string|nil only list changes touched this recently, e.g. `'2w'`; nil lists them all
 ---@field limit integer maximum number of changes fetched by a query
 ---@field labels string[] labels offered in the review buffer when the change lists none
 ---@field timeout integer milliseconds before an ssh or git call is abandoned
@@ -58,6 +59,7 @@ local defaults = {
   project = nil,
   query = 'status:open',
   scope_to_project = true,
+  max_age = '2w',
   limit = 100,
   labels = { 'Code-Review', 'Verified' },
   timeout = 30000,

@@ -85,7 +85,7 @@ subcommands.list = function(_, raw)
 end
 
 subcommands.mine = function()
-  require('gerrit.picker').open 'status:open owner:self'
+  require('gerrit.picker').open(query.recent 'status:open owner:self')
 end
 
 subcommands.open = function(args)

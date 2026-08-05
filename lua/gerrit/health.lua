@@ -55,6 +55,16 @@ M.check = function()
     end
   end
 
+  -- A bad age is only ever reported by the server, once per query, as
+  -- "Error in operator age:...", so say it here where it can be read calmly.
+  local window = config.options.max_age
+  if window and not window:match '^%d+%s*%a+$' then
+    health.warn(('max_age = %q is not a Gerrit age'):format(window), {
+      'use a number and a unit: "36h", "2w", "3mon"',
+      'or set max_age = nil to list changes of every age',
+    })
+  end
+
   local root = git.root()
   if root then
     health.ok('git work tree: ' .. root)

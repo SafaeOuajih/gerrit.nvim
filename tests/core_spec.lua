@@ -58,6 +58,28 @@ check('plain stays plain', util.quote 'status:open' == 'status:open')
 check('spaces get quoted', util.quote 'a b' == '"a b"', util.quote 'a b')
 check('quotes get escaped', util.quote 'say "hi"' == '"say \\"hi\\""', util.quote 'say "hi"')
 
+io.write '\n== the age window ==\n'
+local query = require 'gerrit.query'
+local config = require 'gerrit.config'
+
+config.options.max_age = '2w'
+check('the window is appended', query.recent 'status:open' == 'status:open NOT age:2w', query.recent 'status:open')
+check(
+  'a query of our own is left alone',
+  query.recent 'status:open age:1mon' == 'status:open age:1mon',
+  query.recent 'status:open age:1mon'
+)
+check(
+  'message: is not mistaken for an age',
+  query.recent 'message:foo' == 'message:foo NOT age:2w',
+  query.recent 'message:foo'
+)
+check('the default query is narrowed', query.default_query():find 'NOT age:2w' ~= nil, query.default_query())
+
+config.options.max_age = nil
+check('no window means no clause', query.recent 'status:open' == 'status:open')
+config.options.max_age = '2w'
+
 io.write '\n== diff parsing ==\n'
 local sample = vim.split(
   table.concat({

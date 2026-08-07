@@ -36,10 +36,12 @@ one install covers every Gerrit server you work with.
 3. COMMANDS                                                    *gerrit-commands*
 
                                                                       *:Gerrit*
-:Gerrit                 Pick from the open changes of the current project.
+:Gerrit                 Pick from the open changes of the current project that
+                        have been touched in the last |gerrit-max_age|.
 
 :Gerrit {query}         Pick from an arbitrary Gerrit query, for example
-                        `:Gerrit status:merged owner:self`.
+                        `:Gerrit status:merged owner:self`. A query you write
+                        yourself is sent as it stands, with no age window.
 
 :Gerrit list {query}    The same, when a query would be mistaken for a
                         subcommand name.
@@ -150,6 +152,7 @@ one.
 
       query = 'status:open',
       scope_to_project = true,
+      max_age = '2w',
       limit = 100,
 
       labels = { 'Code-Review', 'Verified' },
@@ -184,6 +187,20 @@ remote ~
 query, scope_to_project, limit ~
   The default query for a bare `:Gerrit`, whether to narrow it to the current
   project, and how many changes a query may return.
+
+                                                              *gerrit-max_age*
+max_age ~
+  How far back `:Gerrit` and `:Gerrit mine` look. `status:open` on an old
+  project matches every change anyone ever left hanging and the server has to
+  walk the lot before the first row comes back, so the query is sent as: >
+
+    status:open NOT age:2w
+<
+  which is what the picker title shows. Any Gerrit age will do: `36h`, `2w`,
+  `3mon`, `1y`. Set it to nil for the exhaustive listing.
+
+  Only the queries the plugin writes itself are narrowed. `:Gerrit {query}` is
+  sent untouched, and `:Gerrit open {n}` opens a change of any age.
 
 labels ~
   Offered in the review buffer when the change itself lists none, which happens

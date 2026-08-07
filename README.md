@@ -126,6 +126,7 @@ require('gerrit').setup {
 
   query = 'status:open',   -- the default query for `:Gerrit`
   scope_to_project = true, -- narrow that query to the current project
+  max_age = '2w',          -- and to the changes touched that recently; nil for all of them
   limit = 100,             -- most changes a query will return
 
   labels = { 'Code-Review', 'Verified' }, -- offered when the change lists none
@@ -152,6 +153,22 @@ require('gerrit').setup {
 ```
 
 Set any key to `false` to leave it unmapped.
+
+### How far back it looks
+
+`status:open` on a project that has been running for years matches every change
+anybody ever left hanging, and the server walks all of them before the first
+row reaches us. `:Gerrit` and `:Gerrit mine` therefore ask only for the changes
+somebody has touched in the last `max_age`, which shows up in the picker title:
+
+```
+status:open NOT age:2w
+```
+
+Any Gerrit age will do: `36h`, `2w`, `3mon`, `1y`. Set `max_age = nil` for the
+old, exhaustive listing. A query you write yourself is never narrowed, so
+`:Gerrit status:open` is the one-off way to see everything, and
+`:Gerrit open 12345` opens a change however long it has been sitting there.
 
 ### Several servers
 
